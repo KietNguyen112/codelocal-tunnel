@@ -1,0 +1,25 @@
+{
+  "selected_mode": "openai",
+  "language": "vi",
+  "theme": "dark",
+  "auto_reconnect": true,
+  "cloudflare": {
+    "token": "",
+    "hostname": "",
+    "target_service": "backend",
+    "custom_port": 3333,
+    "quick_tunnel": false
+  },
+  "openai": {
+    "tunnel_id": "",
+    "runtime_api_key": "",
+    "bearer_token": "",
+    "alias": "codelocal-chatgpt",
+    "local_mcp_url": "http://127.0.0.1:3333/mcp"
+  },
+  "codelocal": {
+    "backend_port": 3333,
+    "web_port": 3000,
+    "auto_detect": true
+  }
+}

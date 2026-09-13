@@ -1,0 +1,2 @@
+# Preserves the runtime directory structure in git.
+# Actual config.json and log files are ignored by .gitignore.

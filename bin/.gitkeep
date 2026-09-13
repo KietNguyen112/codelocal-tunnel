@@ -1,0 +1,2 @@
+# Preserves the bin directory structure in git.
+# .exe binaries are excluded by .gitignore to prevent repo bloat and licensing issues.

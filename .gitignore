@@ -1,0 +1,67 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Testing & Type checking
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# IDE / Editor artifacts
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Binaries (Do NOT commit heavy vendor / proprietary executables to git)
+bin/*.exe
+!bin/.gitkeep
+!bin/README.md
+
+# Runtime persistent data, logs, session state, and credentials
+runtime/config.json
+runtime/*.log
+runtime/*.pid
+runtime/*.url
+!runtime/.gitkeep
+!runtime/config.example.json
+
+# Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini
