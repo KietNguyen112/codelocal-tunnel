@@ -2,31 +2,32 @@
 
 > **Language**: [Tiếng Việt](README.md) | **English**
 
-A modern, production-grade Desktop GUI application designed to configure and expose local Model Context Protocol (MCP) servers to external AI platforms including **ChatGPT Web, Claude, and Codex**.
+Desktop application to configure and run tunnels exposing **CodeLocal Universal MCP** (or any local MCP server) to external AI platforms including **ChatGPT Web, Claude, and Codex**.
 
-Supports two primary tunneling backends:
-1. **Cloudflare Named Tunnel** (`cloudflared.exe`): Exposes services through Cloudflare Zero Trust using your private Tunnel Token and Public Hostname.
-2. **OpenAI Secure MCP Tunnel** (`tunnel-client.exe`): Directly bridges your local MCP server to OpenAI Control Plane / ChatGPT Connectors via Tunnel ID and Runtime API Key.
+Supports two tunneling backends:
+1. **Cloudflare Named Tunnel** (`cloudflared.exe`): Exposes services through Cloudflare Zero Trust using a Tunnel Token and Public Hostname.
+2. **OpenAI Secure MCP Tunnel** (`tunnel-client.exe`): Directly connects to OpenAI Control Plane / ChatGPT Connectors using a Tunnel ID and Runtime API Key.
 
 ---
 
-## 🚀 Key Features
+## 🎯 Core Features
 
-- **Modern Product-Grade Dark Theme**: Clean interface inspired by leading developer tools (Linear, Supabase, Vercel) featuring the Cyber Slate color palette, rounded micro-interactions, and real-time state feedback.
-- **Deep CodeLocal Integration**:
-  - Automatically probes the health of CodeLocal Cloud Backend (Port 3333) and CodeLocal Web (Port 3000).
-  - Built-in **"▶ Start Backend"** action to spin up local services directly from the app.
-- **Enterprise-Grade Security**:
-  - Encrypts all Tokens and API Keys at rest using **Windows DPAPI** (`win32crypt`) with base64 obfuscation fallback on non-Windows platforms.
-  - Automatically sanitizes and redacts sensitive credentials from activity logs.
-- **Self-Healing Process Supervisor**:
-  - Monitors background tunnel worker threads; automatically detects connection drops and applies exponential backoff reconnection.
-  - Clean process teardown ensures zero orphaned or zombie background processes on exit.
-- **Interactive Live Console**:
-  - Real-time color-coded terminal log stream (`[SYSTEM]`, `[CLOUDFLARE]`, `[TUNNEL-CLIENT]`, `[SUCCESS]`, `[ERROR]`).
-  - 1-click Public MCP URL copy with animated visual feedback.
-  - Direct shortcut to open the ChatGPT Connectors management dashboard in your default browser.
-- **Bilingual Support (i18n)**: Seamless instant switching between **Vietnamese** and **English**.
+- **Multi-Backend Tunnel Management**:
+  - Supports both Cloudflare Tunnel and OpenAI Secure Tunnel in one unified tool.
+  - Automatically verifies executable presence in the `bin/` directory.
+- **CodeLocal Integration**:
+  - Automatically monitors CodeLocal Backend (Port 3333) and Web UI (Port 3000) health status.
+  - Built-in 1-click CodeLocal Bearer Token generator for local OAuth authentication.
+- **Security**:
+  - Encrypts Tokens and API Keys on disk using **Windows DPAPI** (`win32crypt`).
+  - Automatically redacts sensitive credentials from log outputs.
+- **Process Supervisor & Self-Healing**:
+  - Tracks background tunnel processes and automatically reconnects on dropped connections.
+  - Tracks PID and performs clean shutdown on exit, preventing orphaned background processes.
+- **Console & Diagnostics**:
+  - Real-time stdout/stderr log streaming from tunnel processes.
+  - CLI diagnostic check mode (`--doctor`).
+  - Bilingual support (Vietnamese / English).
 
 ---
 
@@ -35,26 +36,26 @@ Supports two primary tunneling backends:
 ```text
 tunnel/
 ├── bin/
-│   ├── README.md             # Guide on obtaining cloudflared & tunnel-client
-│   ├── cloudflared.exe       # Cloudflare Tunnel executable (downloaded separately)
-│   └── tunnel-client.exe     # OpenAI Secure Tunnel executable (downloaded separately)
+│   ├── README.md             # Instructions for obtaining required binaries
+│   ├── cloudflared.exe       # Cloudflare Tunnel executable (user-supplied)
+│   └── tunnel-client.exe     # OpenAI Secure Tunnel executable (user-supplied)
 ├── core/
-│   ├── codelocal_client.py   # CodeLocal Backend/Web status probe & token helper
+│   ├── codelocal_client.py   # CodeLocal status detection & token generation
 │   ├── config_store.py       # Configuration management & Windows DPAPI encryption
-│   └── tunnel_runner.py      # Tunnel process lifecycle supervisor & health monitor
+│   └── tunnel_runner.py      # Tunnel lifecycle supervisor & process runner
 ├── ui/
-│   ├── components.py         # CustomTkinter reusable UI components
-│   ├── theme.py              # Design system tokens, color palettes & i18n dictionaries
-│   └── main_window.py        # Main application window & event bindings
+│   ├── components.py         # Reusable UI components (Cards, Badges, Inputs)
+│   ├── theme.py              # Color tokens & localization dictionaries (vi/en)
+│   └── main_window.py        # Main application window
 ├── runtime/
-│   └── config.example.json   # Configuration template (actual config & logs are git-ignored)
+│   └── config.example.json   # Template config (actual config & logs are git-ignored)
 ├── tests/                    # Unit and integration test suite (22 tests)
-├── app.py                    # Application entry point (CLI args & GUI runner)
-├── run.bat                   # 1-click Windows quick launcher
+├── app.py                    # Application entry point (GUI & CLI)
+├── run.bat                   # 1-click Windows batch launcher
 ├── requirements.txt          # Python dependencies (customtkinter)
 ├── README.md                 # Vietnamese documentation
 ├── README_EN.md              # English documentation
-└── .gitignore                # Protects secrets, logs, and binaries from git commits
+└── .gitignore                # Protects secrets, logs, and binaries from git
 ```
 
 ---
@@ -62,26 +63,26 @@ tunnel/
 ## 🛠️ Installation & Setup
 
 ### Prerequisites
-- Windows 10/11 (or Linux/macOS for core headless mode)
+- Windows 10/11
 - Python 3.9 or higher
-- The required binary executables placed in `bin/` (see [`bin/README.md`](bin/README.md))
+- Place required executables into `bin/` (see [`bin/README.md`](bin/README.md)).
 
-### Method 1: Quick Launcher (Windows)
-Double-click the batch file:
+### Method 1: Batch Launcher (Windows)
+Double-click:
 ```cmd
 run.bat
 ```
-This script checks for Python, automatically installs missing dependencies (`customtkinter`), and launches the application.
+The script verifies Python, installs missing dependencies (`requirements.txt`), and launches the app.
 
-### Method 2: Manual Python Launch
+### Method 2: Command Line
 ```bash
 cd tunnel
 pip install -r requirements.txt
 python app.py
 ```
 
-### Headless Diagnostic / Doctor Mode
-Run health and environment checks directly from the command line:
+### CLI Doctor Mode
+Run health and binary diagnostics from terminal:
 ```bash
 python app.py --doctor
 ```
@@ -92,63 +93,44 @@ python app.py --doctor
 
 ### 1. Cloudflare Named Tunnel (`cloudflared.exe`)
 
-Best suited if you have your own domain name and need a stable, permanent public HTTPS endpoint (e.g., `https://mcp.yourdomain.com/mcp`).
+For users with a custom domain on Cloudflare who need a persistent public HTTPS URL:
 
 1. **Cloudflare Zero Trust Setup**:
-   - Navigate to [Cloudflare Zero Trust Dashboard](https://one.dash.cloudflare.com/) > **Networks** > **Tunnels**.
-   - Create a new Tunnel (e.g., named `codelocal`).
-   - Choose the **Windows** environment and copy the **Tunnel Token** (base64 string starting with `eyJhIjoi...`).
-   - Under **Public Hostname**, configure your domain route:
-     - **Subdomain / Domain**: e.g., `mcp` / `yourdomain.com` (Hostname: `mcp.yourdomain.com`)
+   - Open **Zero Trust Dashboard** > **Networks** > **Tunnels** > Create Tunnel.
+   - Choose **Windows** and copy your **Token**.
+   - Add a **Public Hostname** routing to your local service:
      - **Service Type**: `HTTP`
-     - **URL**: `localhost:3333`
-2. **Configure in CodeLocal Tunnel App**:
-   - Open the **☁️ Cloudflare Tunnel** tab.
-   - Paste your **Token** into *Cloudflare Tunnel Token*.
-   - Enter your **Hostname** into *Public Hostname*.
-   - Select Target Service: *CodeLocal Backend (:3333)*.
-   - Click **🚀 START TUNNEL**.
-3. **Connect to ChatGPT / Claude**:
-   - Your public MCP endpoint will be: `https://mcp.yourdomain.com/mcp`
-   - Click **📋 Copy Public MCP URL** and paste it into your AI client.
+     - **URL**: `localhost:3333` (or your target backend port).
+2. **App Configuration**:
+   - Open the **Cloudflare Tunnel** tab.
+   - Paste **Token** and enter your **Public Hostname**.
+   - Click **Start Tunnel**.
+   - Copy the public MCP URL (e.g. `https://mcp.yourdomain.com/mcp`) for ChatGPT or Claude.
 
 ---
 
 ### 2. OpenAI Secure MCP Tunnel (`tunnel-client.exe`)
 
-Recommended when connecting directly to OpenAI ChatGPT Developer Mode / ChatGPT Connectors.
+For connecting directly to ChatGPT Connectors / Developer Mode:
 
 1. **OpenAI Platform Setup**:
-   - Go to [OpenAI Platform Settings - Tunnels](https://platform.openai.com/settings/organization/tunnels).
-   - Create a new Tunnel to receive your **Tunnel ID** (format `tunnel_` + 32 hex chars, e.g., `tunnel_3c8e41a9bf974bfa856e187f583e74a1`).
-   - Generate a **Runtime API Key** (format `sk-mcp-...`).
-2. **Configure in CodeLocal Tunnel App**:
-   - Open the **🤖 ChatGPT Secure Tunnel** tab.
-   - Enter your **OpenAI Tunnel ID** (input field validates the format with real-time green checkmark indicator).
-   - Enter your **Runtime API Key**.
-   - **CodeLocal Bearer Token (Optional)**: Click **⚡ Auto-Generate** to create a valid 365-day access token for your local CodeLocal instance. This token is automatically injected into all upstream requests to prevent HTTP 401 Unauthorized errors when ChatGPT invokes local MCP tools.
-   - Set *Local MCP Server URL* (Default: `http://127.0.0.1:3333/mcp`).
-   - Click **🚀 START TUNNEL**.
-3. **Connect on ChatGPT Web**:
-   - Click **🌐 Open ChatGPT Connectors** (or visit `https://chatgpt.com/#settings/Connectors`).
-   - Add a new Connector using your Tunnel ID or `tunnel://<tunnel_id>`.
+   - Navigate to [OpenAI Platform Settings - Tunnels](https://platform.openai.com/settings/organization/tunnels).
+   - Create a Tunnel to obtain your **Tunnel ID** (`tunnel_...`) and **Runtime API Key** (`sk-mcp-...`).
+2. **App Configuration**:
+   - Open the **ChatGPT Secure Tunnel** tab.
+   - Enter your **Tunnel ID** and **Runtime API Key**.
+   - *(Optional)* Click **⚡ Auto-Generate** for *CodeLocal Bearer Token* if bridging to CodeLocal Backend.
+   - Click **Start Tunnel**.
+3. **Connect on ChatGPT**:
+   - Open **ChatGPT Settings** > **Connectors** and add a connector using the Tunnel ID.
 
 ---
 
-## 🧪 Running Tests
+## 🧪 Testing
 
-The test suite covers Windows DPAPI encryption, binary resolution, upstream HTTP 401 handling, bearer token generation, process lifecycle supervisors, and bilingual localization:
-
+Run automated tests:
 ```bash
 cd tunnel
 python -m unittest discover -s tests -v
 ```
-
-**Result**: 22/22 unit tests passing (100% success rate).
-
----
-
-## 📄 License & Attribution
-
-- Built for the **CodeLocal** developer ecosystem.
-- Powered by [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter), [Cloudflare Tunnel](https://github.com/cloudflare/cloudflared), and [OpenAI MCP](https://modelcontextprotocol.io/).
+All 22 unit tests verify DPAPI encryption, log parsing, process supervisors, upstream 401 handling, and localization.
