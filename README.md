@@ -1,5 +1,7 @@
 # CodeLocal Tunnel Gateway
 
+> **Ngôn ngữ**: **Tiếng Việt** | [English](README_EN.md)
+
 Giao diện Desktop hiện đại, thiết kế chuẩn Product để thiết lập và mở tunnel kết nối ra ngoài mạng Internet cho **CodeLocal Universal MCP** phục vụ các ứng dụng AI như **ChatGPT Web, Claude, Codex**.
 
 Hỗ trợ 2 phương thức mở tunnel chính với các binary được tích hợp sẵn trong thư mục `bin/`:
