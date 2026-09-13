@@ -5,31 +5,31 @@ Theme, styling constants and internationalization for CodeLocal Tunnel Desktop.
 # -----------------------------------------------------------------------------
 # Color Palette (Modern Dark Cyber/SaaS Palette)
 # -----------------------------------------------------------------------------
-BG_DARK = "#090d16"           # Window base background
-BG_SURFACE = "#0f172a"        # Card background
-BG_SURFACE_ALT = "#152035"    # Card elevated background
-BG_INPUT = "#0b1220"          # Form inputs background
-BG_TERMINAL = "#050811"       # Console / logs background
+BG_DARK = "#111214"
+BG_SURFACE = "#18191c"
+BG_SURFACE_ALT = "#202126"
+BG_INPUT = "#121316"
+BG_TERMINAL = "#0d0e10"
 
-BORDER_SUBTLE = "#1e293b"     # Card border
-BORDER_FOCUS = "#06b6d4"      # Input focus highlight
-BORDER_ACTIVE = "#38bdf8"
+BORDER_SUBTLE = "#2a2c31"
+BORDER_FOCUS = "#5b8def"
+BORDER_ACTIVE = "#7aa2f7"
 
-ACCENT_CYAN = "#06b6d4"       # Primary action / brand
-ACCENT_CYAN_HOVER = "#0891b2"
-ACCENT_BLUE = "#2563eb"       # Secondary button
-ACCENT_BLUE_HOVER = "#1d4ed8"
+ACCENT_CYAN = "#6f95e8"
+ACCENT_CYAN_HOVER = "#5d82d3"
+ACCENT_BLUE = "#4f76c9"
+ACCENT_BLUE_HOVER = "#4265ae"
 
-COLOR_ONLINE = "#10b981"      # Emerald green
-COLOR_CONNECTING = "#f59e0b"  # Amber
-COLOR_OFFLINE = "#64748b"     # Slate gray
-COLOR_ERROR = "#f43f5e"       # Rose red
+COLOR_ONLINE = "#48b47a"
+COLOR_CONNECTING = "#d5a94b"
+COLOR_OFFLINE = "#858992"
+COLOR_ERROR = "#d95f63"
 
-TEXT_PRIMARY = "#f8fafc"      # White / high contrast
-TEXT_SECONDARY = "#94a3b8"    # Slate-400
-TEXT_MUTED = "#64748b"        # Slate-500
-TEXT_CYAN = "#38bdf8"         # Cyan link / badge
-TEXT_EMERALD = "#34d399"      # Green badge
+TEXT_PRIMARY = "#f1f2f4"
+TEXT_SECONDARY = "#b0b3b9"
+TEXT_MUTED = "#777b83"
+TEXT_CYAN = "#91aeea"
+TEXT_EMERALD = "#70c997"
 
 # -----------------------------------------------------------------------------
 # Internationalization (i18n)
@@ -41,8 +41,8 @@ I18N = {
         "backend_online": "● CodeLocal Backend: Sẵn sàng (Port 3333)",
         "backend_offline": "○ CodeLocal Backend: Chưa chạy",
         "start_backend_btn": "▶ Bật Backend",
-        "mode_cf": "☁️ Cloudflare Tunnel (Token + Hostname)",
-        "mode_openai": "🤖 ChatGPT Secure Tunnel (Tunnel ID + API Key)",
+        "mode_cf": "Cloudflare Tunnel (Token + Hostname)",
+        "mode_openai": "ChatGPT Secure Tunnel (Tunnel ID + API Key)",
         # Cloudflare fields
         "cf_title": "Cấu hình Cloudflare Named Tunnel",
         "cf_token_label": "Cloudflare Tunnel Token:",
@@ -120,8 +120,8 @@ I18N = {
         "backend_online": "● CodeLocal Backend: Online (Port 3333)",
         "backend_offline": "○ CodeLocal Backend: Offline",
         "start_backend_btn": "▶ Start Backend",
-        "mode_cf": "☁️ Cloudflare Tunnel (Token + Hostname)",
-        "mode_openai": "🤖 ChatGPT Secure Tunnel (Tunnel ID + API Key)",
+        "mode_cf": "Cloudflare Tunnel (Token + Hostname)",
+        "mode_openai": "ChatGPT Secure Tunnel (Tunnel ID + API Key)",
         # Cloudflare fields
         "cf_title": "Cloudflare Named Tunnel Configuration",
         "cf_token_label": "Cloudflare Tunnel Token:",

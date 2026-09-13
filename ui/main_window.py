@@ -5,6 +5,7 @@ import sys
 import threading
 import time
 import webbrowser
+import subprocess
 from typing import Optional
 import tkinter as tk
 from tkinter import messagebox
@@ -28,8 +29,8 @@ class MainWindow(ctk.CTk):
         ctk.set_default_color_theme("blue")
 
         self.title("CodeLocal Tunnel Gateway")
-        self.geometry("980x880")
-        self.minsize(880, 780)
+        self.geometry("1120x780")
+        self.minsize(900, 650)
         self.configure(fg_color=theme.BG_DARK)
 
         # Core Services
@@ -68,53 +69,187 @@ class MainWindow(ctk.CTk):
     # Layout Creation
     # -------------------------------------------------------------------------
     def _create_layout(self):
-        # Configure Grid
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(2, weight=1)  # Expandable log area
+        """Build a real desktop shell instead of the old stacked dashboard."""
+        self.grid_columnconfigure(0, weight=0, minsize=218)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        self._build_sidebar()
 
-        # 1. Top Header Bar
-        self._build_header()
+        self.content_shell = ctk.CTkFrame(self, fg_color=theme.BG_DARK, corner_radius=0)
+        self.content_shell.grid(row=0, column=1, sticky="nsew")
+        self.content_shell.grid_columnconfigure(0, weight=1)
+        self.content_shell.grid_rowconfigure(1, weight=1)
+        self._build_header(parent=self.content_shell)
 
-        # 2. Main Content (Scrollable Container)
-        self.main_container = ctk.CTkScrollableFrame(
-            self,
-            fg_color="transparent",
-            scrollbar_button_color=theme.BORDER_SUBTLE,
-            scrollbar_button_hover_color=theme.ACCENT_CYAN,
-        )
-        self.main_container.grid(row=1, column=0, sticky="nsew", padx=20, pady=(10, 5))
-        self.main_container.grid_columnconfigure(0, weight=1)
+        self.page_host = ctk.CTkFrame(self.content_shell, fg_color="transparent", corner_radius=0)
+        self.page_host.grid(row=1, column=0, sticky="nsew", padx=(0, 24), pady=(0, 8))
+        self.page_host.grid_columnconfigure(0, weight=1)
+        self.page_host.grid_rowconfigure(0, weight=1)
 
-        # 2.1 Mode Selector (Pill tabs)
-        self._build_mode_selector(self.main_container)
+        self.pages = {}
+        self.health_labels = {}
+        self._build_overview_page()
+        self._build_cloudflare_page()
+        self._build_openai_page()
+        self._build_diagnostics_page()
+        self._build_activity_page()
+        self._build_settings_page()
+        self._build_footer(parent=self.content_shell)
+        self._show_page("overview")
 
-        # 2.2 Cloudflare Setup Card
-        self._build_cloudflare_card(self.main_container)
+    def _build_sidebar(self):
+        sidebar = ctk.CTkFrame(self, fg_color=theme.BG_SURFACE, corner_radius=0)
+        sidebar.grid(row=0, column=0, sticky="nsew")
+        sidebar.grid_rowconfigure(8, weight=1)
+        brand = ctk.CTkFrame(sidebar, fg_color="transparent")
+        brand.pack(fill="x", padx=18, pady=(22, 28))
+        ctk.CTkLabel(brand, text="CODELOCAL", anchor="w", font=ctk.CTkFont(size=11, weight="bold"), text_color=theme.ACCENT_CYAN).pack(anchor="w")
+        ctk.CTkLabel(brand, text="Tunnel Gateway", anchor="w", font=ctk.CTkFont(size=18, weight="bold"), text_color=theme.TEXT_PRIMARY).pack(anchor="w", pady=(2, 0))
+        ctk.CTkLabel(brand, text="Local MCP connectivity", anchor="w", font=ctk.CTkFont(size=10), text_color=theme.TEXT_MUTED).pack(anchor="w", pady=(5, 0))
+        self.nav_buttons = {}
+        groups = [("WORKSPACE", [("overview", "Overview")]), ("CONNECTIONS", [("cloudflare", "Cloudflare"), ("openai", "OpenAI Secure")]), ("TOOLS", [("diagnostics", "Diagnostics"), ("activity", "Activity Log")]), ("SYSTEM", [("settings", "Settings")])]
+        for group_name, items in groups:
+            ctk.CTkLabel(sidebar, text=group_name, anchor="w", font=ctk.CTkFont(size=9, weight="bold"), text_color=theme.TEXT_MUTED).pack(fill="x", padx=18, pady=(7, 6))
+            for page_id, label in items:
+                btn = ctk.CTkButton(sidebar, text=label, anchor="w", height=36, fg_color="transparent", hover_color=theme.BG_SURFACE_ALT, text_color=theme.TEXT_SECONDARY, font=ctk.CTkFont(size=12, weight="bold"), corner_radius=5, command=lambda p=page_id: self._show_page(p))
+                btn.pack(fill="x", padx=10, pady=1)
+                self.nav_buttons[page_id] = btn
+        status_box = ctk.CTkFrame(sidebar, fg_color=theme.BG_SURFACE_ALT, corner_radius=6)
+        status_box.pack(fill="x", padx=12, pady=14)
+        ctk.CTkLabel(status_box, text="BACKEND", anchor="w", font=ctk.CTkFont(size=9, weight="bold"), text_color=theme.TEXT_MUTED).pack(fill="x", padx=10, pady=(9, 2))
+        self.backend_sidebar_label = ctk.CTkLabel(status_box, text=self.t("backend_offline"), anchor="w", font=ctk.CTkFont(size=10, weight="bold"), text_color=theme.COLOR_CONNECTING)
+        self.backend_sidebar_label.pack(fill="x", padx=10, pady=(0, 9))
 
-        # 2.3 OpenAI Setup Card
-        self._build_openai_card(self.main_container)
+    def _show_page(self, page_id: str):
+        if page_id not in self.pages:
+            return
+        for frame in self.pages.values():
+            frame.grid_forget()
+        self.pages[page_id].grid(row=0, column=0, sticky="nsew")
+        self.current_page = page_id
+        for name, btn in self.nav_buttons.items():
+            btn.configure(fg_color=theme.BG_SURFACE_ALT if name == page_id else "transparent", text_color=theme.TEXT_PRIMARY if name == page_id else theme.TEXT_SECONDARY)
+        if page_id == "cloudflare":
+            self.selected_mode = "cloudflare"
+            self._update_cf_preview_url()
+        elif page_id == "openai":
+            self.selected_mode = "openai"
+            self._update_oa_preview_url()
 
-        # 2.4 Active Connection & Action Control Center
-        self._build_control_center(self.main_container)
+    def _new_page(self, page_id, title, subtitle):
+        page = ctk.CTkScrollableFrame(self.page_host, fg_color="transparent", scrollbar_button_color=theme.BORDER_SUBTLE, scrollbar_button_hover_color=theme.BORDER_FOCUS)
+        page.grid_columnconfigure(0, weight=1)
+        self.pages[page_id] = page
+        head = ctk.CTkFrame(page, fg_color="transparent")
+        head.pack(fill="x", padx=2, pady=(4, 18))
+        ctk.CTkLabel(head, text=title, anchor="w", font=ctk.CTkFont(size=23, weight="bold"), text_color=theme.TEXT_PRIMARY).pack(anchor="w")
+        ctk.CTkLabel(head, text=subtitle, anchor="w", font=ctk.CTkFont(size=11), text_color=theme.TEXT_MUTED).pack(anchor="w", pady=(4, 0))
+        return page
 
-        # 2.5 Quick Integration Guide Card
-        self._build_guide_card(self.main_container)
+    def _build_overview_page(self):
+        page = self._new_page("overview", "Overview", "Live tunnel state, endpoint and the actions you use most")
+        status = ctk.CTkFrame(page, fg_color=theme.BG_SURFACE, corner_radius=6, border_width=1, border_color=theme.BORDER_SUBTLE)
+        status.pack(fill="x", pady=(0, 10))
+        top = ctk.CTkFrame(status, fg_color="transparent")
+        top.pack(fill="x", padx=18, pady=(16, 8))
+        ctk.CTkLabel(top, text="TUNNEL STATUS", anchor="w", font=ctk.CTkFont(size=9, weight="bold"), text_color=theme.TEXT_MUTED).pack(side="left")
+        self.status_badge = StatusBadge(top, initial_text=self.t("status_offline"), initial_color=theme.COLOR_OFFLINE)
+        self.status_badge.pack(side="right")
+        self.status_title_lbl = ctk.CTkLabel(top, text=self.t("status_title"), anchor="e", font=ctk.CTkFont(size=11), text_color=theme.TEXT_SECONDARY)
+        self.status_title_lbl.pack(side="right", padx=(0, 12))
+        self.status_detail_lbl = ctk.CTkLabel(status, text=self.t("status_detail_offline"), anchor="w", justify="left", font=ctk.CTkFont(size=12), text_color=theme.TEXT_SECONDARY)
+        self.status_detail_lbl.pack(fill="x", padx=18, pady=(0, 12))
+        self.uptime_lbl = ctk.CTkLabel(status, text=self.t("uptime") + " --:--:--", anchor="w", font=ctk.CTkFont(family="Consolas", size=10), text_color=theme.TEXT_MUTED)
+        self.uptime_lbl.pack(fill="x", padx=18, pady=(0, 14))
 
-        # 3. Log Terminal Console
-        self._build_terminal_console()
+        endpoint = ctk.CTkFrame(page, fg_color=theme.BG_SURFACE, corner_radius=6, border_width=1, border_color=theme.BORDER_SUBTLE)
+        endpoint.pack(fill="x", pady=10)
+        ctk.CTkLabel(endpoint, text="MCP ENDPOINT", anchor="w", font=ctk.CTkFont(size=9, weight="bold"), text_color=theme.TEXT_MUTED).pack(fill="x", padx=18, pady=(14, 5))
+        self.public_url_field = CopyableField(endpoint, placeholder_text="Public MCP endpoint", readonly=True)
+        self.public_url_field.pack(fill="x", padx=18, pady=(0, 16))
 
-        # 4. Bottom Footer Status Bar
-        self._build_footer()
+        actions = ctk.CTkFrame(page, fg_color="transparent")
+        actions.pack(fill="x", pady=10)
+        self.action_btn = ctk.CTkButton(actions, text=self.t("btn_start"), height=40, width=210, fg_color=theme.ACCENT_CYAN, hover_color=theme.ACCENT_CYAN_HOVER, text_color="#101318", font=ctk.CTkFont(size=12, weight="bold"), corner_radius=5, command=self._on_action_btn_clicked)
+        self.action_btn.pack(side="left", padx=(0, 8))
+        self.copy_btn = ctk.CTkButton(actions, text=self.t("copy_mcp_url"), height=40, fg_color=theme.BG_SURFACE_ALT, hover_color=theme.BG_INPUT, text_color=theme.TEXT_PRIMARY, border_width=1, border_color=theme.BORDER_SUBTLE, font=ctk.CTkFont(size=11, weight="bold"), corner_radius=5, command=self._copy_public_url)
+        self.copy_btn.pack(side="left", padx=4)
+        self.open_chatgpt_btn = ctk.CTkButton(actions, text=self.t("open_chatgpt_btn"), height=40, fg_color=theme.BG_SURFACE_ALT, hover_color=theme.BG_INPUT, text_color=theme.TEXT_PRIMARY, border_width=1, border_color=theme.BORDER_SUBTLE, font=ctk.CTkFont(size=11, weight="bold"), corner_radius=5, command=lambda: webbrowser.open("https://chatgpt.com/#settings/Connectors"))
+        self.open_chatgpt_btn.pack(side="left", padx=4)
+        self.open_admin_ui_btn = ctk.CTkButton(actions, text=self.t("open_admin_ui_btn"), height=40, fg_color=theme.BG_SURFACE_ALT, hover_color=theme.BG_INPUT, text_color=theme.TEXT_PRIMARY, border_width=1, border_color=theme.BORDER_SUBTLE, font=ctk.CTkFont(size=11, weight="bold"), corner_radius=5, command=self._open_admin_ui)
+        self.open_admin_ui_btn.pack(side="left", padx=4)
+        self.doctor_btn = ctk.CTkButton(actions, text=self.t("btn_doctor"), height=40, fg_color="transparent", hover_color=theme.BG_SURFACE_ALT, text_color=theme.TEXT_SECONDARY, border_width=1, border_color=theme.BORDER_SUBTLE, font=ctk.CTkFont(size=10), corner_radius=5, command=self._run_diagnostics)
+        self.doctor_btn.pack(side="right")
 
-        # Set initial visibility based on mode
-        self._switch_mode(self.selected_mode, save=False)
+        health = ctk.CTkFrame(page, fg_color=theme.BG_SURFACE, corner_radius=6, border_width=1, border_color=theme.BORDER_SUBTLE)
+        health.pack(fill="x", pady=10)
+        ctk.CTkLabel(health, text="LOCAL SERVICES", anchor="w", font=ctk.CTkFont(size=9, weight="bold"), text_color=theme.TEXT_MUTED).pack(fill="x", padx=18, pady=(14, 8))
+        self._health_row(health, "CodeLocal Backend", "Port 3333", "backend")
+        self._health_row(health, "MCP transport", "Local service", "mcp")
+        self._health_row(health, "Tunnel client", "Runtime process", "tunnel")
+
+        recent = ctk.CTkFrame(page, fg_color=theme.BG_SURFACE, corner_radius=6, border_width=1, border_color=theme.BORDER_SUBTLE)
+        recent.pack(fill="x", pady=10)
+        ctk.CTkLabel(recent, text="RECENT ACTIVITY", anchor="w", font=ctk.CTkFont(size=9, weight="bold"), text_color=theme.TEXT_MUTED).pack(fill="x", padx=18, pady=(14, 8))
+        self.overview_activity = ctk.CTkLabel(recent, text="No recent activity.", anchor="w", justify="left", font=ctk.CTkFont(family="Consolas", size=10), text_color=theme.TEXT_SECONDARY)
+        self.overview_activity.pack(fill="x", padx=18, pady=(0, 14))
+
+    def _health_row(self, parent, label, detail, key):
+        row = ctk.CTkFrame(parent, fg_color="transparent")
+        row.pack(fill="x", padx=18, pady=5)
+        ctk.CTkLabel(row, text=label, anchor="w", font=ctk.CTkFont(size=11, weight="bold"), text_color=theme.TEXT_PRIMARY).pack(side="left")
+        ctk.CTkLabel(row, text=detail, anchor="e", font=ctk.CTkFont(size=10), text_color=theme.TEXT_MUTED).pack(side="right")
+        self.health_labels[key] = ctk.CTkLabel(row, text="●", width=18, font=ctk.CTkFont(size=10), text_color=theme.COLOR_OFFLINE)
+        self.health_labels[key].pack(side="right", padx=(8, 0))
+
+    def _build_cloudflare_page(self):
+        page = self._new_page("cloudflare", "Cloudflare", "Configure a named or quick tunnel to your local MCP service")
+        self._build_cloudflare_card(page)
+        self.cf_card.pack(fill="x", pady=0)
+        self.cf_start_btn = ctk.CTkButton(page, text=self.t("btn_start"), height=40, width=180, fg_color=theme.ACCENT_CYAN, hover_color=theme.ACCENT_CYAN_HOVER, text_color="#101318", font=ctk.CTkFont(size=12, weight="bold"), corner_radius=5, command=self._on_action_btn_clicked)
+        self.cf_start_btn.pack(anchor="w", pady=(14, 0))
+
+    def _build_openai_page(self):
+        page = self._new_page("openai", "OpenAI Secure", "Connect a local MCP server through the OpenAI tunnel control plane")
+        self._build_openai_card(page)
+        self.oa_card.pack(fill="x", pady=0)
+        self.oa_start_btn = ctk.CTkButton(page, text=self.t("btn_start"), height=40, width=180, fg_color=theme.ACCENT_CYAN, hover_color=theme.ACCENT_CYAN_HOVER, text_color="#101318", font=ctk.CTkFont(size=12, weight="bold"), corner_radius=5, command=self._on_action_btn_clicked)
+        self.oa_start_btn.pack(anchor="w", pady=(14, 0))
+
+    def _build_diagnostics_page(self):
+        page = self._new_page("diagnostics", "Diagnostics", "Check binaries, local services and tunnel connectivity")
+        box = ctk.CTkFrame(page, fg_color=theme.BG_SURFACE, corner_radius=6, border_width=1, border_color=theme.BORDER_SUBTLE)
+        box.pack(fill="x")
+        ctk.CTkLabel(box, text="SYSTEM CHECK", anchor="w", font=ctk.CTkFont(size=9, weight="bold"), text_color=theme.TEXT_MUTED).pack(fill="x", padx=18, pady=(16, 8))
+        self.diagnostics_summary = ctk.CTkLabel(box, text="Run diagnostics to inspect the current environment.", anchor="w", justify="left", font=ctk.CTkFont(size=11), text_color=theme.TEXT_SECONDARY)
+        self.diagnostics_summary.pack(fill="x", padx=18, pady=(0, 14))
+        ctk.CTkButton(box, text="Run diagnostics", height=38, fg_color=theme.ACCENT_CYAN, hover_color=theme.ACCENT_CYAN_HOVER, text_color="#101318", font=ctk.CTkFont(size=11, weight="bold"), corner_radius=5, command=self._run_diagnostics).pack(anchor="w", padx=18, pady=(0, 16))
+
+    def _build_activity_page(self):
+        page = self._new_page("activity", "Activity Log", "Tunnel events and diagnostics output")
+        self._build_terminal_console(parent=page)
+
+    def _build_settings_page(self):
+        page = self._new_page("settings", "Settings", "Application preferences")
+        box = ctk.CTkFrame(page, fg_color=theme.BG_SURFACE, corner_radius=6, border_width=1, border_color=theme.BORDER_SUBTLE)
+        box.pack(fill="x")
+        ctk.CTkLabel(box, text="INTERFACE", anchor="w", font=ctk.CTkFont(size=9, weight="bold"), text_color=theme.TEXT_MUTED).pack(fill="x", padx=18, pady=(16, 12))
+        row = ctk.CTkFrame(box, fg_color="transparent")
+        row.pack(fill="x", padx=18, pady=(0, 14))
+        ctk.CTkLabel(row, text="Language", anchor="w", font=ctk.CTkFont(size=11, weight="bold"), text_color=theme.TEXT_PRIMARY).pack(side="left")
+        self.settings_lang = ctk.CTkOptionMenu(row, values=["Tiếng Việt", "English"], command=self._on_language_changed, width=130, height=32, fg_color=theme.BG_SURFACE_ALT, button_color=theme.BG_SURFACE_ALT, button_hover_color=theme.BG_INPUT, corner_radius=5)
+        self.settings_lang.set("Tiếng Việt" if self.current_lang == "vi" else "English")
+        self.settings_lang.pack(side="right")
+        ctk.CTkLabel(box, text="Changes are saved automatically. Credentials continue to use the existing secure configuration store.", anchor="w", wraplength=650, justify="left", font=ctk.CTkFont(size=10), text_color=theme.TEXT_MUTED).pack(fill="x", padx=18, pady=(0, 16))
+
 
     # -------------------------------------------------------------------------
     # 1. Header Bar
     # -------------------------------------------------------------------------
-    def _build_header(self):
-        header = CardFrame(self, height=72, fg_color=theme.BG_SURFACE)
-        header.grid(row=0, column=0, sticky="ew", padx=20, pady=(15, 5))
+    def _build_header(self, parent=None):
+        parent = parent or self
+        header = CardFrame(parent, height=72, fg_color=theme.BG_SURFACE)
+        header.grid(row=0, column=0, sticky="ew", padx=24, pady=(18, 12))
         header.grid_columnconfigure(0, weight=1)
 
         header_content = ctk.CTkFrame(header, fg_color="transparent")
@@ -126,7 +261,7 @@ class MainWindow(ctk.CTk):
 
         self.title_label = ctk.CTkLabel(
             title_box,
-            text="⚡ " + self.t("app_title"),
+            text=self.t("app_title"),
             font=ctk.CTkFont(size=20, weight="bold"),
             text_color=theme.ACCENT_CYAN,
         )
@@ -671,11 +806,16 @@ class MainWindow(ctk.CTk):
     # -------------------------------------------------------------------------
     # 3. Log Terminal Console
     # -------------------------------------------------------------------------
-    def _build_terminal_console(self):
-        console_card = CardFrame(self, fg_color=theme.BG_TERMINAL, border_color=theme.BORDER_SUBTLE)
-        console_card.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 10))
-        console_card.grid_columnconfigure(0, weight=1)
-        console_card.grid_rowconfigure(1, weight=1)
+    def _build_terminal_console(self, parent=None):
+        parent = parent or self
+        console_card = CardFrame(parent, fg_color=theme.BG_TERMINAL, border_color=theme.BORDER_SUBTLE)
+        if parent is self:
+            console_card.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 10))
+            console_card.grid_columnconfigure(0, weight=1)
+            console_card.grid_rowconfigure(1, weight=1)
+        else:
+            console_card.pack(fill="both", expand=True, pady=(0, 8))
+            console_card.pack_propagate(False)
 
         # Header of Console
         top_bar = ctk.CTkFrame(console_card, fg_color="transparent", height=32)
@@ -759,9 +899,10 @@ class MainWindow(ctk.CTk):
     # -------------------------------------------------------------------------
     # 4. Bottom Footer Status Bar
     # -------------------------------------------------------------------------
-    def _build_footer(self):
-        footer = ctk.CTkFrame(self, fg_color="transparent", height=24)
-        footer.grid(row=3, column=0, sticky="ew", padx=24, pady=(0, 8))
+    def _build_footer(self, parent=None):
+        parent = parent or self
+        footer = ctk.CTkFrame(parent, fg_color="transparent", height=24)
+        footer.grid(row=2, column=0, sticky="ew", padx=24, pady=(0, 6))
 
         bins = self.tunnel_mgr.check_binaries()
         cf_v = bins["cloudflared"]["version"]
@@ -787,45 +928,14 @@ class MainWindow(ctk.CTk):
     # UI Logic & Mode Switching
     # -------------------------------------------------------------------------
     def _switch_mode(self, mode: str, save: bool = True):
+        """Backward-compatible mode API; navigation now owns the visible page."""
+        mode = "cloudflare" if mode == "cloudflare" else "openai"
         self.selected_mode = mode
         if save:
             self.config_mgr.set("selected_mode", mode)
             self.config_mgr.save()
-
-        if mode == "cloudflare":
-            self.btn_mode_cf.configure(
-                fg_color=theme.ACCENT_CYAN,
-                text_color="#04131f",
-                hover_color=theme.ACCENT_CYAN_HOVER,
-            )
-            self.btn_mode_oa.configure(
-                fg_color="transparent",
-                text_color=theme.TEXT_SECONDARY,
-                hover_color=theme.BG_SURFACE,
-            )
-            self.cf_card.pack(fill="x", pady=6, after=self.mode_frame)
-            self.oa_card.pack_forget()
-            if hasattr(self, "open_admin_ui_btn"):
-                self.open_admin_ui_btn.pack_forget()
-            # Update preview URL
-            self._update_cf_preview_url()
-        else:
-            self.btn_mode_oa.configure(
-                fg_color=theme.ACCENT_CYAN,
-                text_color="#04131f",
-                hover_color=theme.ACCENT_CYAN_HOVER,
-            )
-            self.btn_mode_cf.configure(
-                fg_color="transparent",
-                text_color=theme.TEXT_SECONDARY,
-                hover_color=theme.BG_SURFACE,
-            )
-            self.oa_card.pack(fill="x", pady=6, after=self.mode_frame)
-            self.cf_card.pack_forget()
-            if hasattr(self, "open_admin_ui_btn"):
-                self.open_admin_ui_btn.pack(side="left", padx=(0, 10), after=self.open_chatgpt_btn)
-            # Update preview URL
-            self._update_oa_preview_url()
+        if hasattr(self, "pages"):
+            self._show_page(mode)
 
     def _open_admin_ui(self):
         url = self.tunnel_mgr.admin_ui_url
@@ -1275,10 +1385,8 @@ class MainWindow(ctk.CTk):
             self._apply_translations()
 
     def _apply_translations(self):
-        self.title_label.configure(text="⚡ " + self.t("app_title"))
+        self.title_label.configure(text=self.t("app_title"))
         self.subtitle_label.configure(text=self.t("app_subtitle"))
-        self.btn_mode_cf.configure(text=self.t("mode_cf"))
-        self.btn_mode_oa.configure(text=self.t("mode_openai"))
         self.cf_title_label.configure(text="☁️ " + self.t("cf_title"))
         self.cf_token_lbl.configure(text=self.t("cf_token_label"))
         self.cf_token_hint.configure(text=self.t("cf_token_hint"))

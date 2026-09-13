@@ -14,7 +14,7 @@ class CardFrame(ctk.CTkFrame):
             fg_color=fg_color,
             border_color=border_color,
             border_width=border_width,
-            corner_radius=corner_radius,
+            corner_radius=min(corner_radius, 7),
             **kwargs,
         )
 
@@ -65,7 +65,7 @@ class PasswordEntryWithToggle(ctk.CTkFrame):
 
         self.toggle_btn = ctk.CTkButton(
             self,
-            text="👁",
+            text="Show",
             width=42,
             height=height,
             fg_color=theme.BG_SURFACE_ALT,
